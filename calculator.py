@@ -1,6 +1,18 @@
 def add(a, b):
     return a + b
 
+def subtract(a, b):
+    return a - b
+
+def multiply(a, b):
+    return a * b
+
+def divide(a, b):
+    if b == 0:
+        return "error: division by zero"
+    return a / b 
+
+
 def main():
     print("Calculator")
     
@@ -25,8 +37,18 @@ def main():
         
         if op == 'add':
             print(add(x, y))
+
+        elif op == 'subtract':
+            print(subtract(x, y))
+
+        elif op == 'multiply':
+            print(multiply(x, y))
+
+        elif op == 'divide':
+            print(divide(x, y))
         else:
             print("unknown operation")
+        
 
 if __name__ == "__main__":
     main()
