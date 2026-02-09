@@ -1,0 +1,177 @@
+"""
+Grade Computing System - Performance Comparison
+Automated testing and comparison of multithreading vs multiprocessing
+"""
+
+import threading
+import time
+from multiprocessing import Process, Queue
+from typing import List, Tuple
+import statistics
+
+
+# ==================== MULTITHREADING ====================
+
+results_lock = threading.Lock()
+thread_results = []
+
+
+def compute_gwa_thread(subject_name: str, grade: float, thread_id: int):
+    """Compute GWA using threading."""
+    time.sleep(0.001)  # Simulate processing
+    with results_lock:
+        thread_results.append({'subject': subject_name, 'grade': grade})
+
+
+def run_multithreading(subjects: List[Tuple[str, float]]) -> Tuple[float, float]:
+    """Run the multithreading approach."""
+    global thread_results
+    thread_results = []
+    
+    start_time = time.time()
+    
+    threads = []
+    for idx, (subject_name, grade) in enumerate(subjects):
+        thread = threading.Thread(
+            target=compute_gwa_thread,
+            args=(subject_name, grade, idx + 1)
+        )
+        threads.append(thread)
+        thread.start()
+    
+    for thread in threads:
+        thread.join()
+    
+    end_time = time.time()
+    execution_time = end_time - start_time
+    
+    grades = [item['grade'] for item in thread_results]
+    gwa = sum(grades) / len(grades) if grades else 0
+    
+    return execution_time, gwa
+
+
+# ==================== MULTIPROCESSING ====================
+
+def compute_gwa_process(subject_name: str, grade: float, process_id: int, result_queue: Queue):
+    """Compute GWA using multiprocessing."""
+    time.sleep(0.001)  # Simulate processing
+    result_queue.put({'subject': subject_name, 'grade': grade})
+
+
+def run_multiprocessing(subjects: List[Tuple[str, float]]) -> Tuple[float, float]:
+    """Run the multiprocessing approach."""
+    result_queue = Queue()
+    
+    start_time = time.time()
+    
+    processes = []
+    for idx, (subject_name, grade) in enumerate(subjects):
+        process = Process(
+            target=compute_gwa_process,
+            args=(subject_name, grade, idx + 1, result_queue)
+        )
+        processes.append(process)
+        process.start()
+    
+    for process in processes:
+        process.join()
+    
+    end_time = time.time()
+    execution_time = end_time - start_time
+    
+    results = []
+    while not result_queue.empty():
+        results.append(result_queue.get())
+    
+    grades = [item['grade'] for item in results]
+    gwa = sum(grades) / len(grades) if grades else 0
+    
+    return execution_time, gwa
+
+
+# ==================== TESTING ====================
+
+def generate_test_data(num_subjects: int) -> List[Tuple[str, float]]:
+    """Generate test data for comparison."""
+    subjects = []
+    for i in range(num_subjects):
+        subject_name = f"Subject_{i+1}"
+        grade = 75 + (i % 25)  # Grades between 75-100
+        subjects.append((subject_name, grade))
+    return subjects
+
+
+def run_comparison():
+    """Run comprehensive comparison tests."""
+    print("=" * 80)
+    print("📊 MULTITHREADING vs MULTIPROCESSING - Performance Comparison")
+    print("=" * 80)
+    
+    test_sizes = [5, 10, 50, 100, 500]
+    
+    print("\n" + "=" * 80)
+    print(f"{'Test Size':<15} {'Method':<20} {'Execution Time':<20} {'GWA':<15}")
+    print("=" * 80)
+    
+    results_table = []
+    
+    for size in test_sizes:
+        print(f"\n--- Testing with {size} subjects ---")
+        subjects = generate_test_data(size)
+        
+        # Run multithreading multiple times for average
+        mt_times = []
+        for _ in range(3):
+            mt_time, mt_gwa = run_multithreading(subjects)
+            mt_times.append(mt_time)
+        mt_avg_time = statistics.mean(mt_times)
+        
+        # Run multiprocessing multiple times for average
+        mp_times = []
+        for _ in range(3):
+            mp_time, mp_gwa = run_multiprocessing(subjects)
+            mp_times.append(mp_time)
+        mp_avg_time = statistics.mean(mp_times)
+        
+        print(f"{size:<15} {'Multithreading':<20} {mt_avg_time:<20.6f} {mt_gwa:<15.2f}")
+        print(f"{size:<15} {'Multiprocessing':<20} {mp_avg_time:<20.6f} {mp_gwa:<15.2f}")
+        
+        speedup = mp_avg_time / mt_avg_time if mt_avg_time > 0 else 0
+        print(f"{'':15} {'Speedup Factor':<20} {speedup:<20.2f}x")
+        
+        results_table.append({
+            'size': size,
+            'mt_time': mt_avg_time,
+            'mp_time': mp_avg_time,
+            'mt_gwa': mt_gwa,
+            'mp_gwa': mp_gwa,
+            'speedup': speedup
+        })
+    
+    print("\n" + "=" * 80)
+    print("📈 ANALYSIS SUMMARY")
+    print("=" * 80)
+    
+    # Find which method is faster overall
+    mt_total = sum(r['mt_time'] for r in results_table)
+    mp_total = sum(r['mp_time'] for r in results_table)
+    
+    print(f"\nTotal execution time (all tests):")
+    print(f"  Multithreading:    {mt_total:.6f} seconds")
+    print(f"  Multiprocessing:   {mp_total:.6f} seconds")
+    
+    if mt_total < mp_total:
+        print(f"\n✅ Multithreading is faster overall by {((mp_total/mt_total - 1) * 100):.2f}%")
+        print("   Reason: Lower overhead for I/O-bound and small workloads")
+    else:
+        print(f"\n✅ Multiprocessing is faster overall by {((mt_total/mp_total - 1) * 100):.2f}%")
+        print("   Reason: True parallelism with separate Python interpreters")
+    
+    print("\n" + "=" * 80)
+    
+    return results_table
+
+
+if __name__ == "__main__":
+    run_comparison()
