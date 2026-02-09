@@ -1,34 +1,35 @@
-import threading
+
+
+from multiprocessing import Process, Queue, Manager
 import time
 from typing import List
 
-# Thread-safe storage for results
-results_lock = threading.Lock()
-thread_results = []
 
-def compute_gwa_thread(subject_name: str, grade: float, thread_id: int):
+def compute_gwa_process(subject_name: str, grade: float, process_id: int, result_queue: Queue):
     """
-    Compute GWA for a single subject using threading.
+    Compute GWA for a single subject using multiprocessing.
     
     Args:
         subject_name: Name of the subject
         grade: Grade value
-        thread_id: Identifier for the thread
+        process_id: Identifier for the process
+        result_queue: Queue to store results
     """
-    # Simulates processing time
+ 
     time.sleep(0.01)
     
-    # Calculate GWA (in this case, just the grade itself for individual subjects)
+    
     gwa = grade
     
-    # Thread-safe result storage
-    with results_lock:
-        thread_results.append({
-            'subject': subject_name,
-            'grade': grade,
-            'thread_id': thread_id
-        })
-        print(f"[Thread-{thread_id}] {subject_name}: {grade:.2f}")
+    # Store result in queue
+    result_queue.put({
+        'subject': subject_name,
+        'grade': grade,
+        'process_id': process_id
+    })
+    
+    print(f"[Process-{process_id}] {subject_name}: {grade:.2f}")
+
 
 def get_user_input() -> List[tuple]:
     """
@@ -38,7 +39,7 @@ def get_user_input() -> List[tuple]:
         List of tuples containing (subject_name, grade)
     """
     print("=" * 60)
-    print("GRADE COMPUTING SYSTEM - Multithreading Version")
+    print("📚 GRADE COMPUTING SYSTEM - Multiprocessing Version")
     print("=" * 60)
     
     subjects = []
@@ -61,13 +62,15 @@ def get_user_input() -> List[tuple]:
     
     return subjects
 
+
 def calculate_overall_gwa(grades: List[float]) -> float:
     """Calculate the overall GWA from all grades."""
     return sum(grades) / len(grades) if grades else 0
 
+
 def main():
-    """Main execution function for multithreading approach."""
-    # Get user input
+    """Main execution function for multiprocessing approach."""
+ 
     subjects = get_user_input()
     
     if not subjects:
@@ -75,44 +78,49 @@ def main():
         return
     
     print("\n" + "=" * 60)
-    print("Processing grades using MULTITHREADING...")
+    print("⚡ Processing grades using MULTIPROCESSING...")
     print("=" * 60 + "\n")
     
-    # Start timing
+   
     start_time = time.time()
     
-    # Create and start threads
-    threads = []
-    global thread_results
-    thread_results = []  # Reset results
+ 
+    result_queue = Queue()
+    
+   
+    processes = []
     
     for idx, (subject_name, grade) in enumerate(subjects):
-        thread = threading.Thread(
-            target=compute_gwa_thread,
-            args=(subject_name, grade, idx + 1)
+        process = Process(
+            target=compute_gwa_process,
+            args=(subject_name, grade, idx + 1, result_queue)
         )
-        threads.append(thread)
-        thread.start()
+        processes.append(process)
+        process.start()
     
-    # Wait for all threads to complete
-    for thread in threads:
-        thread.join()
+
+    for process in processes:
+        process.join()
     
-    # End timing
+
     end_time = time.time()
     execution_time = end_time - start_time
     
-    # Calculate overall GWA
+   
+    results = []
+    while not result_queue.empty():
+        results.append(result_queue.get())
+   
     all_grades = [grade for _, grade in subjects]
     overall_gwa = calculate_overall_gwa(all_grades)
     
-    # Display results
+
     print("\n" + "=" * 60)
-    print("FINAL RESULTS")
+    print("📊 FINAL RESULTS")
     print("=" * 60)
     print(f"\nTotal Subjects: {len(subjects)}")
     print(f"Overall GWA: {overall_gwa:.2f}")
-    print(f"Execution Time: {execution_time:.6f} seconds")
+    print(f"⏱️  Execution Time: {execution_time:.6f} seconds")
     print("\n" + "=" * 60)
     
     return execution_time, overall_gwa
@@ -120,4 +128,3 @@ def main():
 
 if __name__ == "__main__":
     main()
- 
