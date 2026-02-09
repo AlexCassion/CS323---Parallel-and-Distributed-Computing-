@@ -15,7 +15,7 @@ def compute_gwa_thread(subject_name: str, grade: float, thread_id: int):
         grade: Grade value
         thread_id: Identifier for the thread
     """
-    # Simulate some processing time
+    # Simulates processing time
     time.sleep(0.01)
     
     # Calculate GWA (in this case, just the grade itself for individual subjects)
@@ -120,3 +120,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+ 
